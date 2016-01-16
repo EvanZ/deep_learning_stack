@@ -1,5 +1,5 @@
 FROM ubuntu:14.04
-MAINTAINER drunkar <drunkars.p@gmail.com>
+MAINTAINER ezamir <zamir.evan@gmail.com>
 
 # locale for tokyo
 RUN cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
@@ -31,7 +31,7 @@ RUN cd /tmp && \
   chmod +x cuda_*_linux.run && ./cuda_*_linux.run -extract=`pwd` && \
 # Install CUDA drivers (silent, no kernel)
   ./NVIDIA-Linux-x86_64-*.run -s --no-kernel-module && \
-# Install toolkit (silent)  
+# Install toolkit (silent)
   ./cuda-linux64-rel-*.run -noprompt && \
 # Clean up
   rm -rf *
@@ -51,8 +51,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN wget --quiet https://repo.continuum.io/archive/Anaconda-2.3.0-Linux-x86_64.sh && \
-    /bin/bash Anaconda-2.3.0-Linux-x86_64.sh -b -p /opt/conda && \                                 
-    rm Anaconda-2.3.0-Linux-x86_64.sh && \                                                         
+    /bin/bash Anaconda-2.3.0-Linux-x86_64.sh -b -p /opt/conda && \
+    rm Anaconda-2.3.0-Linux-x86_64.sh && \
     /opt/conda/bin/conda install --yes conda==3.10.1
 
 ENV PATH /opt/conda/bin:$PATH
@@ -73,38 +73,38 @@ RUN apt-get update && apt-get install -y \
   libleveldb-dev \
   libsnappy-dev \
   libopencv-dev \
-  libboost-all-dev \ 
-  libhdf5-serial-dev \ 
-  protobuf-compiler \ 
-  gcc-4.8 \ 
-  g++-4.8 \ 
-  gcc-4.8-multilib \  
-  g++-4.8-multilib \ 
-  gfortran \ 
-  libjpeg62 \ 
-  libfreeimage-dev \  
-  libatlas-base-dev \  
+  libboost-all-dev \
+  libhdf5-serial-dev \
+  protobuf-compiler \
+  gcc-4.8 \
+  g++-4.8 \
+  gcc-4.8-multilib \
+  g++-4.8-multilib \
+  gfortran \
+  libjpeg62 \
+  libfreeimage-dev \
+  libatlas-base-dev \
   libopenblas-dev \
-  git \ 
-  bc \ 
-  wget \ 
-  curl \ 
-  unzip \ 
-  cmake \ 
-  liblmdb-dev \  
+  git \
+  bc \
+  wget \
+  curl \
+  unzip \
+  cmake \
+  liblmdb-dev \
   pkgconf
 
 # Use gcc 4.8
 RUN update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-4.8 30 && \
-  update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-4.8 30 && \ 
+  update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-4.8 30 && \
   update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 30 && \
   update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 30
 
-# Clone the Caffe repo 
+# Clone the Caffe repo
 RUN cd /opt && git clone https://github.com/jeffdonahue/caffe.git
 RUN cd /opt/caffe && git checkout -b recurrent-rebase-cleanup origin/recurrent-rebase-cleanup
 
-# Glog 
+# Glog
 RUN cd /opt && wget https://google-glog.googlecode.com/files/glog-0.3.3.tar.gz && \
   tar zxvf glog-0.3.3.tar.gz && \
   cd /opt/glog-0.3.3 && \
@@ -112,7 +112,7 @@ RUN cd /opt && wget https://google-glog.googlecode.com/files/glog-0.3.3.tar.gz &
   make && \
   make install
 
-# Workaround for error loading libglog: 
+# Workaround for error loading libglog:
 #   error while loading shared libraries: libglog.so.0: cannot open shared object file
 # The system already has /usr/local/lib listed in /etc/ld.so.conf.d/libc.conf, so
 # running `ldconfig` fixes the problem (which is simpler than using $LD_LIBRARY_PATH)
@@ -128,14 +128,14 @@ RUN cd /opt && \
   mkdir build && \
   cd /opt/gflags-master/build && \
   export CXXFLAGS="-fPIC" && \
-  cmake .. && \ 
+  cmake .. && \
   make VERBOSE=1 && \
   make && \
   make install
 
 # Build Caffe core
 RUN cd /opt/caffe && cp Makefile.config.example Makefile.config
-RUN cd /opt/caffe && echo "CXX := /usr/bin/g++-4.8" >> Makefile.config 
+RUN cd /opt/caffe && echo "CXX := /usr/bin/g++-4.8" >> Makefile.config
 RUN cd /opt/caffe && sed -i 's/atlas/open/' Makefile.config
 RUN cd /opt/caffe && sed -i 's/CXX :=/CXX ?=/' Makefile
 RUN cd /opt/caffe && make all
@@ -154,6 +154,87 @@ RUN cd /opt/caffe && make pycaffe
 ENV PYTHONPATH /opt/caffe/python/:${PYTHONPATH}
 RUN echo "ln /dev/null /dev/raw1394" >> /etc/profile.d/caffeenv.sh
 
+##############################################################################
+# OpenCV 3.0.0
+# This file describes how to build node-opencv into a runnable linux container with all dependencies installed
+# To build:
+# 1) Install docker (http://docker.io)
+# 2) Build: wget https://raw.github.com/dotcloud/docker/v0.1.6/contrib/docker-build/docker-build && python docker-build $USER/node-opencv < Dockerfile
+# 3) Test: docker run $USER/node-opencv node -e "console.log(require('opencv').version)"
+#
+# VERSION		0.3
+# DOCKER-VERSION	8.1.2
+
+
+# update to 14.04
+# FROM	ubuntu:14.04
+
+# listing myself as maintainer of _this_ Dockerfile, though I am not the author of the install script (credit to http://rodrigoberriel.com/)
+# MAINTAINER borromeotlhs@gmail.com
+
+# this is needed as libfaac-dev comes from multiverse, according to:
+# http://superuser.com/questions/467774/how-to-install-libfaac-dev
+RUN echo "deb http://us.archive.ubuntu.com/ubuntu/ precise multiverse\n\
+deb-src http://us.archive.ubuntu.com/ubuntu/ precise multiverse\n\
+deb http://us.archive.ubuntu.com/ubuntu/ precise-updates multiverse\n\
+deb-src http://us.archive.ubuntu.com/ubuntu/ precise-updates multiverse\n"\
+>> /etc/apt/sources.list
+
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    software-properties-common
+RUN add-apt-repository ppa:george-edison55/cmake-3.x
+RUN apt-get update -qq
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+curl \
+cmake \
+wget \
+unzip \
+libopencv-dev \
+build-essential \
+git \
+libgtk2.0-dev \
+pkg-config \
+python-dev \
+python-numpy \
+libdc1394-22 \
+libdc1394-22-dev \
+libjpeg-dev \
+libpng12-dev \
+libtiff4-dev \
+libjasper-dev \
+libavcodec-dev \
+libavformat-dev \
+libswscale-dev \
+libxine-dev \
+libgstreamer0.10-dev \
+libgstreamer-plugins-base0.10-dev \
+libv4l-dev \
+libtbb-dev \
+libqt4-dev \
+libfaac-dev \
+libmp3lame-dev \
+libopencore-amrnb-dev \
+libopencore-amrwb-dev \
+libtheora-dev \
+libvorbis-dev \
+libxvidcore-dev \
+x264 \
+v4l-utils
+
+RUN mkdir opencv
+WORKDIR opencv
+
+RUN wget https://github.com/Itseez/opencv/archive/3.0.0.zip -O opencv-3.0.0.zip
+RUN unzip opencv-3.0.0.zip
+RUN mkdir opencv-3.0.0/build
+WORKDIR opencv-3.0.0/build
+
+RUN cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D WITH_OPENGL=ON ..
+
+RUN make -j $(nproc) && make install
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/opencv.conf
+RUN ldconfig
 
 ##############################################################################
 # ipython notebook
