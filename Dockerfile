@@ -163,6 +163,14 @@ RUN echo "ln /dev/null /dev/raw1394" >> /etc/profile.d/caffeenv.sh
 RUN conda install opencv
 
 ##############################################################################
+#
+# TensorFlow
+#
+##############################################################################
+
+RUN pip install --upgrade https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
+
+##############################################################################
 # ipython notebook
 ##############################################################################
 RUN ipython profile create nbserver
